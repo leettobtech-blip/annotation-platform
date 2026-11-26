@@ -1,0 +1,16 @@
+services:
+  fixtures:
+    build:
+      context: .
+    image: local/annotation-platform
+    command: [uvicorn, tests.adapters:app, --host, 0.0.0.0, --port, "3006"]
+    volumes: ["./tests:/srv/tests:ro"]
+  worker:
+    environment:
+      IMAGE_ADAPTER_URL: http://fixtures:3006/image
+      DOCUMENT_ADAPTER_URL: http://fixtures:3006/document
+      VIDEO_ADAPTER_URL: http://fixtures:3006/video
+      WORKFLOW_ADAPTER_URL: http://fixtures:3006/workflow
+      CHAT_BASE_URL: http://fixtures:3006/v1
+      CHAT_MODEL: smoke-fixture
+      TRANSCRIBE_BASE_URL: http://fixtures:3006/v1

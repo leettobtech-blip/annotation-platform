@@ -1,0 +1,47 @@
+name: annotation-platform
+x-app: &app
+  build: .
+  image: local/annotation-platform
+  environment:
+    DATABASE_URL: postgresql://annotation:annotation@db/annotation
+    DEMO_TOKEN: ${DEMO_TOKEN:-local-annotation-demo}
+    MEDIA_ROOT: /data
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: annotation
+      POSTGRES_USER: annotation
+      POSTGRES_PASSWORD: annotation
+    volumes: [database:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U annotation -d annotation"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  migrate:
+    <<: *app
+    command: [python, -m, annotation.db]
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    <<: *app
+    ports: ["127.0.0.1:${API_PORT:-3000}:3000"]
+    volumes: [media:/data]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  worker:
+    <<: *app
+    command: [python, -m, annotation.worker]
+    volumes: [media:/data:ro]
+    stop_grace_period: 165s
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+volumes:
+  database:
+  media:
